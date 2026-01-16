@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>M2 Experiment</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script src="https://bradylab.ucsd.edu/turk/sample/jsPsych/jspsych.js"></script>
+<script src="https://rcweb.dartmouth.edu/StoermerLab/experiments/Yong/vwm_real_scramble_v1/plugIns/jspsych-rsvp.js"></script>
+<script src="https://rcweb.dartmouth.edu/StoermerLab/experiments/Yong/vwm_real_scramble_v1/plugIns/jspsych-2afc-keyboard.js"></script>
+<script src="https://rcweb.dartmouth.edu/StoermerLab/experiments/Yong/vwm_real_scramble_v1/plugIns/jspsych-fc-mouse.js"></script>
+<script src="https://bradylab.ucsd.edu/turk/sample/jsPsych/plugins/jspsych-fullscreen.js"></script>
+<script src="https://bradylab.ucsd.edu/turk/sample/jsPsych/plugins/jspsych-instructions.js"></script>
+<script src="https://bradylab.ucsd.edu/turk/sample/jsPsych/plugins/jspsych-survey-text.js"></script>
+<script src="https://unpkg.com/@jspsych-contrib/plugin-pipe"></script>
+<link   href="https://bradylab.ucsd.edu/turk/sample/jsPsych/css/jspsych.css" rel="stylesheet" type="text/css">
+<style>
+    .jspsych-instructions-nav { margin-bottom: 100px; }
+    #consentDiv { font-size: 9pt; text-align: justify; }
+</style>
+</head>
+<body>
+<script>
+
+const COMPLETION_URL = "https://google.com";
+const OBJECT = 1;
+const SCRAMBLED = 2;
+const LEFT = 0;
+const RIGHT = 1;
+
+let trialTimeline = [];
+var totalTrials = 10; 
+var objectCount = 1;
+var scrambleCount = 1;
+var objectTrialIndex = 0; 
+var scrambleTrialIndex = 0;
+var delayDuration = 1000;
+var beforeInterval = 300;
+var frameStart = undefined;
+var subjectId = "Example" + Math.round(Math.random() * 10000) + "v1";
+var itemDuration = 300;
+// isi = inter-stimulus interval
+var isiDuration = 200;
+    
+function shuffleArray(array) {
+  var currentIndex = array.length, tempValue, randomIndex;
+  while (0 !== currentIndex) {
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+    tempValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = tempValue;
+  }
+  return array;
+}
+    
+function getRandomInteger(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+    
+// Setup object vs scramble trials
+var objectTypes = [];
+var scrambleTypes = [];
+for (var i=0; i<(totalTrials/2); i++){
+    objectTypes.push(1);
+    scrambleTypes.push(2);
+}
+var trialTypes = objectTypes.concat(scrambleTypes);
+trialTypes = shuffleArray(trialTypes);
+    
+// Setup foil locations
+var correctLeft = [];
+var correctRight = [];
+for (var i=0; i<(totalTrials/2); i++){
+    correctLeft.push(0);
+    correctRight.push(1);
+}
+var correctLocations = correctLeft.concat(correctRight);
+correctLocations = shuffleArray(correctLocations);
+    
+// Setup target objects
+var targetIndexObj = 0;
+var targetsObj = [];
+for (var i=0; i<totalTrials; i++){
+    targetIndexObj = targetIndexObj + 4;
+    targetsObj.push(getRandomInteger(targetIndexObj - 3, targetIndexObj));
+}
+var foilsObj = targetsObj;
+    
+// Setup scrambled targets
+var targetIndexScr = 0;
+var targetsScr = [];
+for (var i=0; i<totalTrials; i++){
+    targetIndexScr = targetIndexScr + 4;
+    targetsScr.push(getRandomInteger(targetIndexScr - 3, targetIndexScr));
+}
+var foilsScr = targetsScr;
+
+// RSVP = Rapid serial visual presentation
+function addRsvpTrial(trialType, imageIndex){
+    if(trialType == 1){ 
+        trialTimeline.push({
+           type: 'rsvp',
+           stim_width: 200,
+           stim_height: 200,    
+           stimuli: [0, imageIndex, imageIndex+1, imageIndex+2, imageIndex+3].map((num)=> `https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_objects/obj${num}.jpg`),
+           timing: [0, itemDuration, itemDuration, itemDuration, itemDuration],
+           isi: [beforeInterval, isiDuration, isiDuration, isiDuration, delayDuration]
+        });
+    }
+    else if(trialType == 2){
+        trialTimeline.push({
+           type: 'rsvp',
+           stim_width: 200,
+           stim_height: 200,    
+           stimuli: [0, imageIndex, imageIndex+1, imageIndex+2, imageIndex+3].map((num)=>`https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_scrambled/obj${num}.jpg`),
+           timing: [0, itemDuration, itemDuration, itemDuration, itemDuration],
+           isi: [beforeInterval, isiDuration, isiDuration, isiDuration, delayDuration]
+        });
+    }
+}
+
+function addResponseTrial(trialIdx, subIdx){
+    if (trialTypes[trialIdx] == OBJECT){
+        if (correctLocations[trialIdx] == LEFT){
+            trialTimeline.push({
+                type: '2afc-keyboard',
+                stimuli: ["https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_objects/obj" + targetsObj[subIdx] + ".jpg", "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/foil_objects/obj" + foilsObj[subIdx] + ".jpg"],
+                stim_width: 200,
+                stim_height: 200,
+                keys: [37, 39],
+                prompt: "Which one did you see?<br>Press arrow key to choose left/right",
+                which_correct: 0,
+                shuffle_order: false,
+                feedback: true
+            });
+        }
+        else if (correctLocations[trialIdx] == RIGHT){
+            trialTimeline.push({
+                type: '2afc-keyboard',
+                stimuli: ["https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/foil_objects/obj" + foilsObj[subIdx] + ".jpg","https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_objects/obj" + targetsObj[subIdx] + ".jpg"],
+                stim_width: 200,
+                stim_height: 200,
+                keys: [37, 39],
+                prompt: "Which one did you see?<br>Press arrow key to choose left/right",
+                which_correct: 1,
+                shuffle_order: false,
+                feedback: true
+             });
+        }
+    }
+    else if (trialTypes[trialIdx] == SCRAMBLED){
+        if (correctLocations[trialIdx] == LEFT){
+            trialTimeline.push({
+                type: '2afc-keyboard',
+                stimuli: ["https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_scrambled/obj" + targetsScr[subIdx] + ".jpg", "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/foil_scrambled/obj" + foilsScr[subIdx] + ".jpg"],
+                stim_width: 200,
+                stim_height: 200,
+                keys: [37, 39],
+                prompt: "Which one did you see?<br>Press arrow key to choose left/right",
+                which_correct: 0,
+                shuffle_order: false,
+                feedback: true
+            });
+        }
+        else if (correctLocations[trialIdx] == RIGHT){
+            trialTimeline.push({
+                type: '2afc-keyboard',
+                stimuli: ["https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/foil_scrambled/obj" + foilsScr[subIdx] + ".jpg","https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_scrambled/obj" + targetsScr[subIdx] + ".jpg"],
+                stim_width: 200,
+                stim_height: 200,
+                keys: [37, 39],
+                prompt: "Which one did you see?<br>Press arrow key to choose left/right",
+                which_correct: 1,
+                shuffle_order: false,
+                feedback: true
+             });
+        } 
+    }
+}
+
+// Intro sequence
+trialTimeline.push({
+    type: "instructions",
+    pages: ['<b>Please make sure to use full screen for the experiment! You will see instruction next.</b><br><br>'],
+    show_clickable_nav: true
+});
+    
+trialTimeline.push({
+  type: 'fullscreen',
+  fullscreen_mode: true
+});
+    
+trialTimeline.push({
+    type: "instructions",
+    pages: ['<H2><b>Instruction</b><br><br></H2> <p>In this experiment, you will perform a simple color memory task. In total it should take around 30 minutes. </p><br> <h3> The Task </h3> <p>In this task, you will be looking at a sequence of 4 colored images per trial, all appearing at the center. These images may look distorted or normal. Here are some examples of how images may look like: </p> <p><img src = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_objects/obj111.jpg" width = 20%><img src = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_objects/obj222.jpg" width = 20%><img src = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_objects/obj333.jpg" width = 20%><img src = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_objects/obj444.jpg" width = 20%></p> <p><img src = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_scrambled/obj99.jpg" width = 20%><img src = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_scrambled/obj200.jpg" width = 20%><img src = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_scrambled/obj300.jpg" width = 20%><img src = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_scrambled/obj400.jpg" width = 20%></p> <p>Your job is to remember the colors of these 4 images. After the images are shown there will be a short delay. Then one of the objects will reappear and you will be given two color choices. Please indicate which color was the one you just saw by pressing <b>left or right arrow keys</b> on your keyboard.</p> There will be a sound feedback.<br><p>The presentation will be pretty brief so please make sure to pay attention to the center where images will appear.</p>'],
+    show_clickable_nav: true
+});
+    
+// Trial generation
+for (var i=0; i<totalTrials; i++){
+    if (trialTypes[i] == OBJECT){
+        addRsvpTrial(trialTypes[i], objectCount);
+        objectCount = objectCount + 4;
+    }
+    else if (trialTypes[i] == SCRAMBLED){
+        addRsvpTrial(trialTypes[i], scrambleCount);
+        scrambleCount = scrambleCount + 4;
+    }
+    
+    if (trialTypes[i] == OBJECT){
+        addResponseTrial(i, objectTrialIndex);
+        objectTrialIndex = objectTrialIndex + 1;
+    }
+    else if (trialTypes[i] == SCRAMBLED){
+        addResponseTrial(i, scrambleTrialIndex);
+        scrambleTrialIndex = scrambleTrialIndex + 1;
+    }
+}
+
+trialTimeline.push({
+    type: 'survey-text',
+    preamble: "Thank you! You're just about done. If you would, please tell us about yourself:",
+    questions: [
+        {prompt: "How old are you?", name: 'age', rows: 1, columns: 5}, 
+        {prompt: "Gender:", name: 'gender', rows: 1, columns: 7},
+        {prompt: "Any comments? Was it fun? Any technical difficulties? Any strategies?:", name: 'comments', rows: 3, columns: 100}
+    ],
+    button_label: "Get Credit",
+    on_finish: saveToDataPipe
+});
+
+function saveToDataPipe() {
+    document.body.innerHTML = `
+        <div style="
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            font-family: Arial, sans-serif;
+            text-align: center;">
+            <div class="spinner"></div> <h2 style="color: #333;">Saving data, please wait...</h2>
+            <p style="color: #666;">This may take a moment. Do not close this window.</p>
+            <p style="color: #666;">You will be redirected once data is saved.</p>
+        </div>
+    `;
+
+    fetch("https://pipe.jspsych.org/api/data/", {
+        method: "POST",
+        headers: {
+        "Content-Type": "application/json",
+        Accept: "*/*",
+        },
+        body: JSON.stringify({
+        experimentID: "rvfrjsDruanS",
+        filename: `data_${jsPsych.randomization.randomID(10)}.csv`,
+        data: jsPsych.data.get().csv(),
+        }),
+    }).then((response) => {
+        if (response.ok) {
+            redirectOnCompletion();
+        } else {
+            handleSaveError();
+        }
+    })
+    .catch((error) => {
+        handleSaveError();
+    });
+}
+
+function redirectOnCompletion() {
+    window.location.href = COMPLETION_URL;
+}
+
+function handleSaveError() {
+    document.body.innerHTML = `
+        <div style="margin: 100px; text-align: center; font-family: sans-serif;">
+            <h2>Data Upload Failed</h2>
+            <p>We couldn't reach the server, but don't worry! Your progress is safe.</p>
+            <p>1. Click the button below to download your results file.</p>
+            <p>2. Please email the file to <b>yasha.raiz.25@ucl.ac.uk</b>.</p>
+            <button onclick="downloadCSV()">Download Results (.csv)</button>
+            <br><br>
+            <a href="${COMPLETION_URL}">Get credit</a>
+        </div>
+    `;
+}
+
+function downloadCSV() {
+    var csvData = jsPsych.data.get().csv();
+    var blob = new Blob([csvData], { type: 'text/csv' });
+    var url = window.URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'experiment_data.csv';
+    a.click();
+}
+
+jsPsych.init({
+    timeline: trialTimeline,
+    show_progress_bar: true,
+    show_preload_progress_bar: true,
+    message_progress_bar: "Progress on entire study:",
+    use_webaudio: false,
+    experiment_width: 750,
+    exclusions: {
+        min_width: 700,
+        min_height: 500
+    }
+});
+</script>
+</body>
+</html>
