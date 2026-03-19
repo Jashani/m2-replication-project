@@ -11,12 +11,8 @@ def simulate_m2_experiment(output_directory, num_participants=200):
     TOTAL_TRIALS = 270
     TRIALS_PER_TYPE = int(TOTAL_TRIALS / 2)
     # Targeted performance from supplemental material
-    INTACT_D = 0.55
-    SCRAMBLED_D = 0.55
-    
-    # Probabilities for 2AFC
-    p_intact = norm.cdf(INTACT_D / np.sqrt(2))
-    p_scrambled = norm.cdf(SCRAMBLED_D / np.sqrt(2))
+    INTACT_D = 0.8
+    SCRAMBLED_D = 0.6
 
     for p_id in range(1, num_participants + 1):       
         obj_success = 0
@@ -25,7 +21,7 @@ def simulate_m2_experiment(output_directory, num_participants=200):
         scr_fail = 0
         
         # Participant variance: Skill and Speed
-        p_skill_bias = np.random.normal(0, 0.2)
+        p_skill_bias = np.random.normal(0, 0.15)
         p_speed_base = np.random.uniform(600, 1200)
         
         # 3% of participants are "low performers" (< 0 d' overall)
@@ -43,20 +39,21 @@ def simulate_m2_experiment(output_directory, num_participants=200):
         for i, t_type in enumerate(trial_types):
             # --- 1. RSVP Phase ---
             # Mimicking URL progression in batches of 4
+            trial_noise = np.random.normal(0, 0.1)
             if t_type == "OBJECT":
                 target_id = random.randint(obj_counter, obj_counter + 3)
-                recency_boost = 0.10 if (target_id % 4 == 0) else 0.0
                 base_url = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_objects/obj"
                 foil_url = f"https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/foil_objects/obj{target_id}.jpg"
                 obj_counter += 4
-                prob = p_intact + p_skill_bias + recency_boost
+                participant_d = INTACT_D + p_skill_bias + trial_noise
+                prob = norm.cdf(participant_d / np.sqrt(2))
             else:
                 target_id = random.randint(scr_counter, scr_counter + 3)
-                recency_boost = 0.10 if (target_id % 4 == 0) else 0.0
                 base_url = "https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/color_scrambled/obj"
                 foil_url = f"https://raw.githubusercontent.com/Jashani/m2-replication-project/refs/heads/main/foil_scrambled/obj{target_id}.jpg"
                 scr_counter += 4
-                prob = p_scrambled + p_skill_bias + recency_boost
+                participant_d = SCRAMBLED_D + p_skill_bias + trial_noise
+                prob = norm.cdf(participant_d / np.sqrt(2))
 
             target_img_url = f"{base_url}{target_id}.jpg"
             
@@ -64,12 +61,13 @@ def simulate_m2_experiment(output_directory, num_participants=200):
             time_accumulator += 2000 # Length of RSVP sequence
             results.append({
                 "rt": "", "trial_type": "rsvp", "trial_index": i*2,
-                "time_elapsed": time_accumulator, "success": "", "items": "",
+                "time_elapsed": time_accumulator, "items": "",
                 "order": "", "key_response": "", "correct": ""
             })
 
             # --- 2. 2AFC Phase ---
             # Determine accuracy
+            # How often a participant loses focus
             if is_low_performer: prob = 0.50 
             is_correct = np.random.random() < prob
             if is_correct:
@@ -100,7 +98,6 @@ def simulate_m2_experiment(output_directory, num_participants=200):
                 "trial_type": "2afc-keyboard",
                 "trial_index": (i*2) + 1,
                 "time_elapsed": time_accumulator,
-                "success": "",
                 "items": items,
                 "order": side_choice,
                 "key_response": key_response,
@@ -114,10 +111,8 @@ def simulate_m2_experiment(output_directory, num_participants=200):
 
     print(f"Generated 200 files in {output_directory}")
 
-# Execution
-# simulate_m2_experiment("simulated_results")
 
-output_dir = 'simulated_data/bad'
+output_dir = 'simulated_data/good'
 
 if __name__ == "__main__":
     simulate_m2_experiment(output_dir)
